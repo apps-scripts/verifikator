@@ -1,0 +1,178 @@
+function doGet(e) {
+  const page = e.parameter.page || 'user';
+  const template = HtmlService.createTemplateFromFile('Index');
+  template.mode = page;
+  
+  return template.evaluate()
+      .setTitle('DocVerify Pro - ' + (page === 'admin' ? 'Verifikator' : 'Pengirim')) // Judul Tab
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// GANTI ID FOLDER DRIVE DI SINI
+const FOLDER_ID = '1zKAQ1h2RZWsTbo_aJ5d5dQnZkyJ-PTdE'; 
+
+function uploadFile(obj) {
+  try {
+    const folder = DriveApp.getFolderById(FOLDER_ID);
+    const blob = Utilities.newBlob(Utilities.base64Decode(obj.data), obj.mimeType, obj.fileName);
+    const file = folder.createFile(blob);
+    
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Data');
+    const now = Utilities.formatDate(new Date(), "GMT+7", "dd MMM yyyy, HH:mm");
+    
+    // Inisialisasi riwayat pertama kali di kolom G (Indeks 7)
+    const initialLog = `[${now} | Uploaded | ${obj.uploaderName}]: Dokumen baru berhasil diunggah.`;
+    
+    sheet.appendRow([
+      new Date(),
+      obj.uploaderName,
+      obj.fileName,
+      file.getUrl(),
+      file.getId(),
+      'Menunggu Verifikasi',
+      initialLog
+    ]);
+    
+    return 'Berhasil mengunggah dokumen!';
+  } catch (f) {
+    return 'Gagal: ' + f.toString();
+  }
+}
+
+function getDocumentData() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Data');
+    
+    // PENTING: Gunakan getDisplayValues() agar semua data jadi teks
+    // Jika menggunakan getValues(), objek Date akan membuat pengiriman data error/stuck
+    const data = sheet.getDataRange().getDisplayValues(); 
+    
+    if (data.length <= 1) return []; 
+    
+    data.shift(); // Hapus header
+    return data;
+  } catch (err) {
+    throw new Error(err.toString());
+  }
+}
+
+function updateStatus(fileId, newStatus, adminNote) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Data');
+    const data = sheet.getDataRange().getValues();
+    const now = Utilities.formatDate(new Date(), "GMT+7", "dd MMM yyyy, HH:mm");
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][4] == fileId) { 
+        let oldNote = data[i][6] || ""; 
+        // GANTI: ADMIN -> VERIFIKATOR di dalam log
+        let newEntry = `[${now} | ${newStatus} | VERIFIKATOR]: ${adminNote || 'Tanpa catatan.'}`;
+        let updatedNote = newEntry + "\n" + oldNote;
+
+        sheet.getRange(i + 1, 6).setValue(newStatus);
+        sheet.getRange(i + 1, 7).setValue(updatedNote);
+        return "Status berhasil diperbarui!";
+      }
+    }
+  } catch (err) { return "Gagal: " + err.toString(); }
+}
+
+function reuploadFile(obj) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Data');
+    const data = sheet.getDataRange().getValues();
+    const folder = DriveApp.getFolderById(FOLDER_ID);
+    const now = Utilities.formatDate(new Date(), "GMT+7", "dd MMM yyyy, HH:mm");
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][4] == obj.oldFileId) { // Cari baris berdasarkan File ID lama
+        
+        // 1. Ambil info lama untuk log
+        const uploaderName = data[i][1]; // Nama pengirim di Kolom B
+        const oldLog = data[i][6] || ""; // Riwayat lama di Kolom G
+
+        // 2. Hapus file lama dari Drive
+        try { DriveApp.getFileById(obj.oldFileId).setTrashed(true); } catch(e) {}
+
+        // 3. Upload file baru
+        const blob = Utilities.newBlob(Utilities.base64Decode(obj.data), obj.mimeType, obj.fileName);
+        const newFile = folder.createFile(blob);
+
+        // 4. BUAT LOG BARU UNTUK TIMELINE
+        const newEntry = `[${now} | Re-uploaded | ${uploaderName}]: Dokumen perbaikan telah diunggah.`;
+        const updatedLog = newEntry + "\n" + oldLog;
+
+        // 5. Update baris di Spreadsheet
+        sheet.getRange(i + 1, 1).setValue(new Date());        // Update Timestamp
+        sheet.getRange(i + 1, 3).setValue(obj.fileName);    // Update Nama File
+        sheet.getRange(i + 1, 4).setValue(newFile.getUrl()); // Update Link
+        sheet.getRange(i + 1, 5).setValue(newFile.getId());  // Update ID File baru
+        sheet.getRange(i + 1, 6).setValue('Menunggu Verifikasi'); // Reset Status
+        sheet.getRange(i + 1, 7).setValue(updatedLog);       // SIMPAN LOG BARU KE KOLOM G
+        
+        return "Dokumen berhasil diperbarui dan riwayat dicatat.";
+      }
+    }
+  } catch (err) {
+    return "Gagal: " + err.toString();
+  }
+}
+
+// Fungsi untuk mengecek password admin
+function checkAdminPassword(inputPassword) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Settings');
+  
+  // Jika sheet settings belum ada, buat otomatis
+  if (!sheet) {
+    sheet = ss.insertSheet('Settings');
+    sheet.getRange('A1').setValue('Password');
+    sheet.getRange('B1').setValue('admin123');
+  }
+  
+  const savedPassword = sheet.getRange('B1').getValue().toString();
+  return inputPassword === savedPassword;
+}
+
+// Fungsi untuk mengubah password admin
+function updateAdminPassword(newPassword) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Settings');
+    sheet.getRange('B1').setValue(newPassword);
+    return "Password admin berhasil diperbarui!";
+  } catch (e) {
+    return "Gagal mengubah password: " + e.toString();
+  }
+}
+
+function logCheckingActivity(fileId) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Data');
+    const data = sheet.getDataRange().getValues();
+    const now = Utilities.formatDate(new Date(), "GMT+7", "dd MMM yyyy, HH:mm");
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][4] == fileId) {
+        let currentStatus = data[i][5];
+        let oldLog = data[i][6] || "";
+
+        // Hanya catat jika status masih "Menunggu Verifikasi" 
+        // dan belum pernah ada log "Checking" sebelumnya
+        if (currentStatus === "Menunggu Verifikasi" && !oldLog.includes("| Checking |")) {
+          let newEntry = `[${now} | Checking | VERIFIKATOR]: Verifikator sedang memeriksa dokumen.`;
+          let updatedLog = newEntry + "\n" + oldLog;
+          
+          sheet.getRange(i + 1, 7).setValue(updatedLog);
+          return "Log pemeriksaan dicatat.";
+        }
+      }
+    }
+  } catch (e) {
+    return "Error: " + e.toString();
+  }
+}
