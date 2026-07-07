@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root { --primary: #4f46e5; --bg-body: #f8fafc; }
+    body { background-color: var(--bg-body); font-family: 'Inter', sans-serif; color: #1e293b; padding: 20px; }
+    .main-container { max-width: 1150px; margin: 0 auto; }
+    
+    .role-switcher { background: white; padding: 5px; border-radius: 10px; display: inline-flex; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+    .role-btn { padding: 8px 20px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: 0.3s; border: none; background: transparent; color: #64748b; }
+    .role-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); }
+
+    .custom-card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 15px; margin-bottom: 20px; }
+    .table thead th { padding: 10px 15px !important; font-size: 11px; background-color: #f1f5f9; text-transform: uppercase; }
+    .table tbody td { padding: 8px 15px !important; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
+
+    .status-badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .waiting { background: #fef3c7; color: #92400e; }
+    .verified { background: #dcfce7; color: #166534; }
+    .rejected { background: #fee2e2; color: #991b1b; }
+
+    .btn-action {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px; /* Lebih kotak tapi tetap soft */
+      border: none;
+      transition: all 0.2s ease;
+      font-size: 16px;
+      margin: 0 2px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .btn-verif { background-color: #ecfdf5; color: #10b981; }
+    .btn-verif:hover:not(:disabled) { background-color: #10b981; color: white; transform: translateY(-2px); }
+
+    .btn-tolak { background-color: #fff1f2; color: #f43f5e; }
+    .btn-tolak:hover:not(:disabled) { background-color: #f43f5e; color: white; transform: translateY(-2px); }
+
+    .btn-reupload { background-color: #eff6ff; color: #3b82f6; }
+    .btn-reupload:hover { background-color: #3b82f6; color: white; transform: translateY(-2px); }
+
+    .btn-history { background-color: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+    .btn-history:hover { background-color: #64748b; color: white; transform: translateY(-2px); }
+    .btn-action:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      filter: grayscale(1);
+      box-shadow: none;
+    }
+    .pagination-container { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: white; border-top: 1px solid #e2e8f0; border-radius: 0 0 12px 12px; }
+    /* Style Timeline Modern */
+    .timeline-container {
+      position: relative;
+      padding-left: 30px;
+      margin: 10px 0;
+    }
+    .timeline-container::before {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 5px;
+      width: 2px;
+      height: 100%;
+      background: #e2e8f0;
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 25px;
+    }
+    .timeline-dot {
+      position: absolute;
+      left: -30px;
+      top: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid #cbd5e1;
+      z-index: 2;
+    }
+    /* Warna Dot berdasarkan status */
+    .dot-uploaded { border-color: #3b82f6; background: #3b82f6; }
+    .dot-terverifikasi { border-color: #10b981; background: #10b981; }
+    .dot-ditolak { border-color: #ef4444; background: #ef4444; }
+
+    .timeline-content {
+      background: transparent;
+    }
+    .timeline-date {
+      font-size: 11px;
+      color: #94a3b8;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .timeline-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    .title-uploaded { color: #3b82f6; }
+    .title-terverifikasi { color: #10b981; }
+    .title-ditolak { color: #ef4444; }
+
+    .timeline-bubble {
+      background: #f8fafc;
+      padding: 10px 15px;
+      border-radius: 12px;
+      font-size: 13px;
+      color: #475569;
+      border: 1px solid #f1f5f9;
+      display: inline-block;
+      min-width: 200px;
+    }
+
+    /* Sembunyikan switcher peran secara default */
+    .role-switcher { display: none !important; }
+
+    /* Style Textarea Catatan Elegan */
+    .note-textarea {
+      font-size: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background-color: #f8fafc;
+      padding: 8px 10px;
+      resize: vertical; /* Izinkan user memperbesar secara vertikal jika perlu */
+      transition: all 0.2s ease;
+      color: #475569;
+      width: 100%;
+      min-height: 60px; /* Dipertinggi agar cukup untuk 2-3 baris */
+      line-height: 1.5;
+      overflow-y: auto;
+    }
+
+    .note-textarea:focus {
+      outline: none;
+      background-color: #ffffff;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+      color: #1e293b;
+    }
+
+    .note-textarea:disabled {
+      background-color: #f1f5f9;
+      border-color: #e2e8f0;
+      color: #94a3b8;
+      cursor: not-allowed;
+    }
+    .role-switcher { display: none !important; }
+
+    /* Tambahkan di dalam tag <style> */
+    .dot-checking { border-color: #6366f1; background: #6366f1; }
+    .title-checking { color: #6366f1; }
+
+    /* Style Pencarian Modern & Mewah */
+    .search-container {
+      position: relative;
+      width: 100%;
+      transition: all 0.3s ease;
+    }
+
+    /* Style untuk menyamakan tinggi Filter & Search */
+    .custom-filter-select {
+      height: 40px; /* Tinggi tetap */
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      background-color: #ffffff;
+      font-size: 13px;
+      padding: 0 15px; /* Sesuaikan padding horizontal */
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .custom-filter-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+      outline: none;
+    }
+
+    .search-input-wrapper {
+      height: 40px; /* Tinggi disamakan (40px) */
+      display: flex;
+      align-items: center;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 0 12px;
+      transition: all 0.2s ease;
+    }
+
+    /* Memastikan label memiliki margin yang sama */
+    .filter-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .search-input-wrapper:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .search-icon {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-right: 10px;
+    }
+
+    #searchInput {
+      border: none;
+      background: transparent;
+      padding: 8px 0;
+      font-size: 13px;
+      color: #1e293b;
+      width: 100%;
+      outline: none;
+    }
+
+    #searchInput::placeholder {
+      color: #cbd5e1;
+    }
+
+    /* Tombol X (Clear) */
+    .clear-search {
+      position: absolute;
+      right: 10px;
+      background: #f1f5f9;
+      color: #94a3b8;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: none; /* Default sembunyi */
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .clear-search:hover {
+      background: #e2e8f0;
+      color: #64748b;
+    }
+
+    /* Custom Dropdown Status */
+    .status-dropdown {
+      position: relative;
+      width: 100%;
+      height: 40px;
+    }
+
+    .status-trigger {
+      width: 100%;
+      height: 40px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      padding: 0 15px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #1e293b;
+      justify-content: space-between;
+      transition: all 0.2s;
+    }
+
+    .status-trigger:hover {
+      border-color: var(--primary);
+    }
+
+    .status-menu {
+      position: absolute;
+      top: 48px;
+      left: 0;
+      width: 100%;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      border: 1px solid #f1f5f9;
+      display: none; /* Sembunyi by default */
+      z-index: 1000;
+      padding: 8px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .status-item:hover {
+      background: #f8fafc;
+    }
+
+    /* Ikon Bulat Berwarna */
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    /* Definisi Warna Dot */
+    .dot-all { background-color: #94a3b8; } /* Gray */
+    .dot-waiting { background-color: #f59e0b; } /* Orange/Yellow */
+    .dot-verified { background-color: #10b981; } /* Green */
+    .dot-rejected { background-color: #ef4444; } /* Red */
+
+    /* Animasi Panah */
+    .arrow-icon {
+      font-size: 10px;
+      color: #94a3b8;
+      transition: transform 0.2s;
+    }
+
+    .status-dropdown.active .status-menu { display: block; }
+    .status-dropdown.active .arrow-icon { transform: rotate(180deg); }
+
+    /* Style Splash Screen Loader */
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #f1f1f1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999; /* Pastikan paling atas */
+      transition: opacity 0.5s ease, visibility 0.5s;
+    }
+
+    .loader {
+      position: relative;
+      width: 180px;
+      height: 180px;
+      background: #f1f1f1;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: -10px -10px 15px rgba(255, 255, 255, 1),
+                  10px 10px 10px rgba(0, 0, 0, 0.1),
+                  inset -10px -10px 15px rgba(255, 255, 255, 0.5),
+                  inset 10px 10px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .loader span {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: linear-gradient(#14ffe9, #ffeb3b, #ff00e0);
+      z-index: -1;
+      filter: blur(20px);
+      animation: animateLoader 1.5s linear infinite; /* Kecepatan disesuaikan agar lebih halus */
+    }
+
+    .loader::before {
+      content: 'LOADING';
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: #94a3b8;
+      font-weight: 700;
+    }
+
+    @keyframes animateLoader {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Class untuk menghilangkan loader */
+    .loader-hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    /* Style Tombol Lihat File Hijau Elegan */
+    /* Style Tombol Lihat File (Ukuran Serasi dengan Status) */
+    .btn-view-file {
+      background-color: #ecfdf5; 
+      color: #059669; 
+      border: 1px solid #10b981; 
+      
+      /* Padding disamakan dengan badge status agar tinggi identik */
+      padding: 3px 12px; 
+      
+      border-radius: 20px; 
+      font-size: 11px; /* Ukuran font sama dengan status */
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      line-height: 1.2; /* Menjaga teks tetap di tengah secara vertikal */
+    }
+
+    .btn-view-file:hover {
+      background-color: #10b981; 
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(16, 185, 129, 0.15);
+    }
+
+    .btn-view-file i {
+      font-size: 12px; /* Ukuran ikon sedikit diperkecil agar tidak menarik tinggi baris */
+      line-height: 0;
+    }
+
+    /* Warna untuk status Re-uploaded di Timeline */
+    .dot-re-uploaded { border-color: #06b6d4; background: #06b6d4; }
+    .title-re-uploaded { color: #06b6d4; }
+  </style>
+</head>
+<body>
+
+  <!-- Splash Screen Loader -->
+  <div id="loading-screen">
+    <div class="loader">
+      <span></span>
+    </div>
+    <p class="mt-4 text-muted small fw-bold" style="letter-spacing: 1px;">MENYIAPKAN DATA...</p>
+  </div>
+
+  <div class="main-container">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h4 class="fw-bold m-0"><i class="bi bi-shield-check text-primary"></i> VERIFIKASI SPJ</h4>
+      
+      <div class="role-switcher shadow-sm">
+        <button class="role-btn active" id="btnUserMode" onclick="switchMode('user')"><i class="bi bi-person me-1"></i> Mode Pengirim</button>
+        <!-- GANTI: Mode Admin -> Mode Verifikator -->
+        <button class="role-btn" id="btnAdminMode" onclick="switchMode('admin')"><i class="bi bi-person-badge me-1"></i> Mode Verifikator</button>
+      </div>
+    </div>
+
+    <!-- SEKSI USER -->
+    <div id="userSection">
+      <div class="custom-card shadow-sm border border-primary-subtle">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <label class="small fw-bold text-muted mb-1">PENGIRIM</label>
+            <input type="text" id="uploaderName" class="form-control form-control-sm" placeholder="Input pengirim">
+          </div>
+          <div class="col-md-5">
+            <label class="small fw-bold text-muted mb-1">PILIH DOKUMEN</label>
+            <input type="file" id="fileInput" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-4">
+            <button onclick="processUpload()" id="uploadBtn" class="btn btn-primary btn-sm w-100 fw-bold">
+              <i class="bi bi-cloud-arrow-up-fill me-2"></i>UPLOAD DOKUMEN
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Baris Kontrol (Filter & Pencarian Presisi) -->
+    <div class="row g-3 mb-4 px-1 align-items-end">
+      <!-- Filter Status Custom -->
+      <div class="col-md-3">
+        <label class="filter-label">Status Dokumen</label>
+        <div class="status-dropdown" id="statusDropdown">
+          <div class="status-trigger shadow-sm" onclick="toggleStatusMenu()">
+            <div class="d-flex align-items-center" id="selectedStatusDisplay">
+              <div class="status-dot dot-all"></div>
+              <span>Semua Dokumen</span>
+            </div>
+            <i class="bi bi-chevron-down arrow-icon"></i>
+          </div>
+          <div class="status-menu shadow">
+            <div class="status-item" onclick="selectStatus('Semua', 'dot-all', 'Semua Dokumen')">
+              <div class="status-dot dot-all"></div> Semua Dokumen
+            </div>
+            <div class="status-item" onclick="selectStatus('Menunggu Verifikasi', 'dot-waiting', 'Menunggu Verifikasi')">
+              <div class="status-dot dot-waiting"></div> Menunggu Verifikasi
+            </div>
+            <div class="status-item" onclick="selectStatus('Terverifikasi', 'dot-verified', 'Terverifikasi')">
+              <div class="status-dot dot-verified"></div> Terverifikasi
+            </div>
+            <div class="status-item" onclick="selectStatus('Ditolak', 'dot-rejected', 'Ditolak')">
+              <div class="status-dot dot-rejected"></div> Ditolak
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Pencarian Modern -->
+      <div class="col-md-5">
+        <label class="filter-label">Cari Pengirim</label>
+        <div class="search-container shadow-sm">
+          <div class="search-input-wrapper">
+            <i class="bi bi-search search-icon"></i>
+            <input type="text" id="searchInput" placeholder="Ketik nama untuk mencari..." onkeyup="handleSearch(this.value)">
+            <button type="button" id="btnClearSearch" class="clear-search" onclick="clearSearch()">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEKSI ADMIN SETTINGS (Hanya tampil di mode admin) -->
+    <input type="file" id="reuploadInput" style="display:none" onchange="processReupload(this)">
+    <input type="hidden" id="targetOldFileId">
+
+    <div class="table-responsive shadow-sm" style="border-radius: 12px 12px 0 0; background: white; border: 1px solid #e2e8f0;">
+      <table class="table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>PENGIRIM & TANGGAL</th>
+            <th>LIHAT FILE</th>
+            <th>STATUS</th>
+            <!-- GANTI: Catatan Admin -> Catatan Verifikator -->
+            <th width="380">CATATAN VERIFIKATOR</th>
+            <th class="text-center">AKSI</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="5" class="text-center py-5">Memuat data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination-container shadow-sm border border-top-0">
+      <div class="small text-muted" id="pageInfo">...</div>
+      <div class="d-flex align-items-center gap-2">
+        <label class="small text-muted">Hal:</label>
+        <select id="pageSelect" class="form-select form-select-sm" style="width: 70px;" onchange="goToPage(this.value)"></select>
+        <div class="btn-group">
+          <button class="btn btn-sm btn-outline-secondary" id="btnPrev" onclick="prevPage()"><i class="bi bi-chevron-left"></i></button>
+          <button class="btn btn-sm btn-outline-secondary" id="btnNext" onclick="nextPage()"><i class="bi bi-chevron-right"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allData = [];
+    let currentPage = 1;
+    const rowsPerPage = 5;
+    let currentRole = 'user';
+    let currentFilter = 'Semua'; // <-- Variabel filter baru
+    let searchQuery = '';
+
+    const urlMode = "<?= mode ?>";
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // Langsung arahkan berdasarkan URL parameter tanpa password
+      if (urlMode === 'admin') {
+        switchMode('admin');
+      } else {
+        switchMode('user');
+      }
+      loadData();
+    });
+
+    function applyFilter(status) {
+      currentFilter = status;
+      currentPage = 1; // Reset ke halaman 1 saat filter berubah
+      renderTable();
+    }
+
+    function switchMode(role) {
+      currentRole = role;
+      applyMode(role);
+
+      // GANTI: Admin -> Verifikator
+      const roleName = (role === 'admin') ? 'Verifikator' : 'Pengirim';
+      
+      Swal.fire({
+        icon: 'success',
+        title: `Masuk sebagai ${roleName}`,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true
+      });
+
+      const btnUser = document.getElementById('btnUserMode');
+      const btnAdmin = document.getElementById('btnAdminMode');
+      if (btnUser && btnAdmin) {
+        btnUser.classList.toggle('active', role === 'user');
+        btnAdmin.classList.toggle('active', role === 'admin');
+      }
+    }
+
+    function applyMode(role) {
+      currentRole = role;
+      
+      // Gunakan Optional Chaining (?.) atau cek null agar tidak error jika elemen sudah dihapus
+      const btnUser = document.getElementById('btnUserMode');
+      const btnAdmin = document.getElementById('btnAdminMode');
+      const userSec = document.getElementById('userSection');
+      const adminSet = document.getElementById('adminSettings'); // Bagian ganti password
+
+      if (btnUser) btnUser.classList.toggle('active', role === 'user');
+      if (btnAdmin) btnAdmin.classList.toggle('active', role === 'admin');
+      if (userSec) userSec.style.display = (role === 'user') ? 'block' : 'none';
+      if (adminSet) adminSet.style.display = (role === 'admin') ? 'block' : 'none';
+      
+      renderTable();
+    }
+
+    // --- SISANYA ADALAH LOGIC YANG SAMA DENGAN SEBELUMNYA ---
+    function loadData() {
+      // Pastikan loader tampil saat mulai loading (opsional jika refresh)
+      // document.getElementById('loading-screen').classList.remove('loader-hidden');
+
+      google.script.run
+        .withSuccessHandler(data => { 
+          allData = data; 
+          renderTable(); 
+          
+          // --- HILANGKAN LOADER DI SINI ---
+          setTimeout(() => {
+            document.getElementById('loading-screen').classList.add('loader-hidden');
+          }, 800); // Beri jeda sedikit agar transisi halus
+        })
+        .withFailureHandler(err => {
+          Swal.fire("Gagal Memuat", err.message, "error");
+          document.getElementById('loading-screen').classList.add('loader-hidden');
+        })
+        .getDocumentData();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      
+      // 1. LOGIKA PENYARINGAN GANDA (Status & Pencarian)
+      let filteredData = allData.filter(row => {
+        const matchesStatus = (currentFilter === 'Semua' || row[5] === currentFilter);
+        const matchesSearch = row[1].toLowerCase().includes(searchQuery);
+        return matchesStatus && matchesSearch;
+      });
+
+      // 2. LOGIKA PAGINATION
+      const start = (currentPage - 1) * rowsPerPage;
+      const end = start + rowsPerPage;
+      const paginatedData = filteredData.slice(start, end);
+
+      // Tampilan jika data tidak ditemukan
+      if (filteredData.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center py-5 text-muted">
+              <i class="bi bi-search fs-2 d-block mb-2"></i>
+              Tidak ditemukan data "${searchQuery}" dengan status "${currentFilter}"
+            </td>
+          </tr>`;
+        updatePaginationUI(0);
+        return;
+      }
+
+      tbody.innerHTML = '';
+      paginatedData.forEach(row => {
+        // Definisi Status & Badge
+        let badgeClass = 'waiting';
+        if (row[5] === 'Terverifikasi') badgeClass = 'verified';
+        if (row[5] === 'Ditolak') badgeClass = 'rejected';
+
+        const isVerified = (row[5] === 'Terverifikasi');
+        const isDitolak = (row[5] === 'Ditolak');
+        const isLocked = (isVerified || isDitolak);
+        const safeNote = (row[6] || "").replace(/\n/g, "<br>"); // Untuk popup timeline
+
+        // --- LOGIKA EKSTRAKSI CATATAN ---
+        // Jika sudah diverifikasi atau ditolak, tampilkan pesan terakhir dari log di textarea
+        const displayNote = isLocked ? getLastMessage(row[6]) : "";
+
+        // --- LOGIKA TOMBOL AKSI ---
+        let actionHtml = '';
+        if (currentRole === 'admin') {
+          actionHtml = `
+            <button class="btn-action btn-verif" onclick="changeStatus('${row[4]}', 'Terverifikasi')" 
+                    ${isLocked ? 'disabled' : ''} title="Verifikasi">
+              <i class="bi bi-check-circle-fill"></i>
+            </button>
+            <button class="btn-action btn-tolak" onclick="changeStatus('${row[4]}', 'Ditolak')" 
+                    ${isLocked ? 'disabled' : ''} title="Tolak">
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          `;
+        } else {
+          if (isDitolak) {
+            actionHtml = `
+              <button class="btn-action btn-reupload" onclick="triggerReupload('${row[4]}')" title="Perbaiki & Upload Ulang">
+                <i class="bi bi-cloud-arrow-up-fill"></i>
+              </button>
+            `;
+          }
+        }
+        
+        // Tombol Timeline (Riwayat)
+        actionHtml += `
+          <button class="btn-action btn-history" onclick="viewHistory('${safeNote}')" title="Lihat Timeline">
+            <i class="bi bi-clock-history"></i>
+          </button>
+        `;
+
+        // --- RENDER BARIS ---
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <div class="fw-bold text-dark">${row[1]}</div>
+            <div class="text-muted" style="font-size: 10px;">
+              <i class="bi bi-calendar3 me-1"></i>${row[0]}
+            </div>
+          </td>
+          <td>
+            <button onclick="handleOpenFile('${row[4]}', '${row[3]}')" class="btn-view-file">
+              <i class="bi bi-eye-fill"></i> Lihat
+            </button>
+          </td>
+          <td><span class="status-badge ${badgeClass}">${row[5]}</span></td>
+          
+          <td>
+            <textarea id="note-${row[4]}" class="note-textarea" 
+              rows="2"  /* Ubah ke 3 agar lebih luas */
+              placeholder="${isLocked ? 'Pesan terkunci' : (currentRole === 'user' ? 'Lihat timeline...' : 'Contoh:\n1. Nota Salah\n2. Laporan Kurang')}" 
+              ${(isLocked || currentRole === 'user') ? 'disabled' : ''}>${displayNote}</textarea>
+          </td>
+
+          <td>
+            <div class="d-flex justify-content-center align-items-center">
+              ${actionHtml}
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      updatePaginationUI(filteredData.length);
+    }
+
+    function updatePaginationUI(totalFilteredItems) {
+      const totalPages = Math.ceil(totalFilteredItems / rowsPerPage) || 1;
+      document.getElementById('pageInfo').innerText = `Total: ${totalFilteredItems} data (${currentFilter})`;
+      
+      const pageSelect = document.getElementById('pageSelect');
+      pageSelect.innerHTML = '';
+      for (let i = 1; i <= totalPages; i++) {
+        const opt = document.createElement('option');
+        opt.value = i; opt.innerText = i;
+        if (i === currentPage) opt.selected = true;
+        pageSelect.appendChild(opt);
+      }
+      document.getElementById('btnPrev').disabled = (currentPage === 1);
+      document.getElementById('btnNext').disabled = (currentPage === totalPages || totalFilteredItems === 0);
+    }
+
+    function goToPage(p) { currentPage = parseInt(p); renderTable(); }
+    function prevPage() { if (currentPage > 1) { currentPage--; renderTable(); } }
+    function nextPage() {
+      let filteredCount = currentFilter === 'Semua' ? allData.length : allData.filter(row => row[5] === currentFilter).length;
+      if (currentPage * rowsPerPage < filteredCount) {
+        currentPage++;
+        renderTable();
+      }
+    }
+    function showLoading(m) { Swal.fire({ title: m, allowOutsideClick: false, didOpen: () => Swal.showLoading() }); }
+
+    // Logic Functions (Upload, Change Status, etc)
+    function processUpload() {
+      const nameInput = document.getElementById('uploaderName');
+      const fileInput = document.getElementById('fileInput');
+      
+      if (!fileInput.files[0] || !nameInput.value) {
+        Swal.fire("Peringatan", "Nama Pengirim & File wajib diisi", "warning");
+        return;
+      }
+      
+      showLoading("Mengunggah...");
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      
+      reader.onload = function(e) {
+        const obj = {
+          data: e.target.result.split(',')[1],
+          mimeType: file.type,
+          fileName: file.name,
+          uploaderName: nameInput.value
+        };
+        
+        google.script.run.withSuccessHandler((res) => {
+          Swal.fire({ icon: 'success', title: 'Terkirim!', text: res, timer: 2000 });
+          
+          // --- PERBAIKAN: CLEAR FORM DI SINI ---
+          nameInput.value = ''; 
+          fileInput.value = '';
+          // -------------------------------------
+          
+          loadData();
+        }).uploadFile(obj);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function changeStatus(id, status) {
+  // 1. Ambil elemen dan nilai dari textarea
+  const noteElement = document.getElementById('note-' + id);
+  const noteValue = noteElement ? noteElement.value.trim() : "";
+  
+  // 2. Validasi: Jika ditolak, catatan wajib diisi
+  if (status === 'Ditolak' && !noteValue) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Catatan Diperlukan',
+      text: 'Harap tuliskan alasan penolakan pada kolom catatan sebelum menolak dokumen.',
+      confirmButtonColor: '#f43f5e'
+    });
+    return;
+  }
+
+  // 3. Dialog Konfirmasi Modern
+  Swal.fire({
+    title: `Konfirmasi`,
+    text: `Apakah Anda yakin dokumen ini sudah diverifikasi?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: status === 'Terverifikasi' ? '#10b981' : '#f43f5e',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: status === 'Terverifikasi' ? 'Ya' : 'Ya, Tolak Dokumen',
+    cancelButtonText: 'Batal',
+    reverseButtons: true // Memposisikan tombol 'Batal' di kiri
+  }).then((result) => {
+    if (result.isConfirmed) {
+      // 4. Tampilkan Loading saat proses server
+      showLoading(`Sedang memproses status: ${status}...`);
+      
+      google.script.run
+        .withSuccessHandler((res) => {
+          Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: res,
+            timer: 1500,
+            showConfirmButton: false
+          });
+          loadData(); // Segarkan tabel
+        })
+        .withFailureHandler((err) => {
+          Swal.fire({
+            icon: 'error',
+            title: 'Terjadi Kesalahan',
+            text: err.toString()
+          });
+        })
+        .updateStatus(id, status, noteValue);
+    }
+  });
+}
+
+    function triggerReupload(id) { document.getElementById('targetOldFileId').value = id; document.getElementById('reuploadInput').click(); }
+    function processReupload(input) {
+      if (!input.files[0]) return;
+      const file = input.files[0];
+      const oldFileId = document.getElementById('targetOldFileId').value;
+      
+      showLoading("Memperbarui dokumen...");
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const obj = {
+          data: e.target.result.split(',')[1],
+          mimeType: file.type,
+          fileName: file.name,
+          oldFileId: oldFileId
+        };
+        
+        google.script.run.withSuccessHandler((res) => {
+          Swal.fire({ icon: 'success', title: 'Berhasil', text: res });
+          
+          // --- PERBAIKAN: CLEAR INPUT FILE TERSEMBUNYI ---
+          input.value = ''; 
+          // ----------------------------------------------
+          
+          loadData();
+        }).reuploadFile(obj);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function viewHistory(noteRaw) {
+      if (!noteRaw || noteRaw.trim() === "") {
+        Swal.fire("Info", "Belum ada riwayat.", "info");
+        return;
+      }
+
+      // Ganti <br> kembali ke \n untuk memudahkan parsing
+      const cleanLog = noteRaw.replace(/<br>/g, '\n');
+      
+      // Pecah berdasarkan baris baru yang diikuti dengan "[" (awal entri log)
+      const entries = cleanLog.split(/\n(?=\[)/);
+      
+      let timelineHtml = '<div class="timeline-container text-start">';
+
+      entries.forEach(entry => {
+        if (!entry.trim()) return;
+        
+        // Regex untuk memecah [Waktu | Status | Pelaku]: Pesan (Pesan bisa multi-line)
+        const match = entry.match(/\[(.*?) \| (.*?) \| (.*?)\]: ([\s\S]*)/);
+        if (match) {
+          const [_, date, status, actor, message] = match;
+          let statusKey = status.toLowerCase().replace(/\s/g, '-');
+          
+          // Ubah \n di dalam message menjadi <br> agar tampil baris baru di HTML
+          const formattedMessage = message.trim().replace(/\n/g, '<br>');
+          
+          timelineHtml += `
+            <div class="timeline-item">
+              <div class="timeline-dot dot-${statusKey}"></div>
+              <div class="timeline-content">
+                <div class="timeline-date">${date}</div>
+                <div class="timeline-title title-${statusKey}">
+                  ${status} oleh ${actor}
+                </div>
+                <div class="timeline-bubble shadow-sm">
+                  ${formattedMessage}
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      });
+
+      timelineHtml += '</div>';
+
+      Swal.fire({
+        title: '<strong>Timeline Dokumen</strong>',
+        html: timelineHtml,
+        width: '480px',
+        showCloseButton: true,
+        confirmButtonText: 'Tutup',
+        confirmButtonColor: '#4f46e5'
+      });
+    }
+
+    function handleOpenFile(fileId, fileUrl) {
+      // 1. Langsung buka file di tab baru (agar cepat)
+      window.open(fileUrl, '_blank');
+
+      // 2. Jika mode Verifikator, kirim log ke server
+      if (currentRole === 'admin') {
+        google.script.run
+          .withSuccessHandler(() => {
+            // Refresh data secara diam-diam untuk memperbarui timeline di latar belakang
+            loadData(); 
+          })
+          .logCheckingActivity(fileId);
+      }
+    }
+
+    function handleSearch(val) {
+      searchQuery = val.toLowerCase();
+      
+      // Tampilkan tombol X jika ada teks, sembunyikan jika kosong
+      const btnClear = document.getElementById('btnClearSearch');
+      if (val.length > 0) {
+        btnClear.style.display = 'flex';
+      } else {
+        btnClear.style.display = 'none';
+      }
+
+      currentPage = 1; 
+      renderTable();
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('searchInput');
+      input.value = '';
+      searchQuery = '';
+      
+      // Sembunyikan tombol X
+      document.getElementById('btnClearSearch').style.display = 'none';
+      
+      currentPage = 1;
+      input.focus(); // Kembalikan fokus ke input
+      renderTable();
+    }
+
+    // Fungsi buka/tutup menu
+    function toggleStatusMenu() {
+      document.getElementById('statusDropdown').classList.toggle('active');
+    }
+
+    // Fungsi saat item dipilih
+    function selectStatus(statusValue, dotClass, labelText) {
+      // 1. Update tampilan trigger (tulisan dan warna dot)
+      const display = document.getElementById('selectedStatusDisplay');
+      display.innerHTML = `<div class="status-dot ${dotClass}"></div> <span>${labelText}</span>`;
+      
+      // 2. Tutup menu
+      document.getElementById('statusDropdown').classList.remove('active');
+      
+      // 3. Jalankan fungsi filter asli Anda
+      applyFilter(statusValue);
+    }
+
+    // Menutup dropdown jika klik di luar area
+    window.onclick = function(event) {
+      if (!event.target.closest('#statusDropdown')) {
+        document.getElementById('statusDropdown').classList.remove('active');
+      }
+    }
+
+    // Fungsi untuk mengambil pesan saja dari baris pertama log riwayat
+    function getLastMessage(logRaw) {
+      if (!logRaw) return "";
+      
+      // Pisahkan berdasarkan entri riwayat (setiap entri dimulai dengan [ )
+      // Kita gunakan regex untuk memecah berdasarkan baris baru yang diikuti tanda [
+      const entries = logRaw.split(/\n(?=\[)/); 
+      const firstEntry = entries[0]; // Ambil entri paling atas (terbaru)
+      
+      // Ambil teks setelah karakter "]: "
+      const parts = firstEntry.split(']: ');
+      if (parts.length > 1) {
+        // Gabungkan kembali sisa bagian jika di dalam pesan ada simbol "]: "
+        return parts.slice(1).join(']: ').trim();
+      }
+      return "";
+    }
+  </script>
+</body>
+</html>
