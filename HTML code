@@ -435,6 +435,27 @@
     /* Warna untuk status Re-uploaded di Timeline */
     .dot-re-uploaded { border-color: #06b6d4; background: #06b6d4; }
     .title-re-uploaded { color: #06b6d4; }
+
+    /* Animasi Lonceng Bergetar */
+    @keyframes ringing {
+      0% { transform: rotate(0); }
+      10% { transform: rotate(15deg); }
+      20% { transform: rotate(-15deg); }
+      30% { transform: rotate(10deg); }
+      40% { transform: rotate(-10deg); }
+      50% { transform: rotate(0); }
+      100% { transform: rotate(0); }
+    }
+
+    .bell-ringing {
+      animation: ringing 2s infinite;
+      color: #f59e0b !important; /* Warna Amber saat ada notif */
+    }
+
+    #notifBell:hover {
+      transform: scale(1.1);
+      transition: 0.2s;
+    }
   </style>
 </head>
 <body>
@@ -449,12 +470,33 @@
 
   <div class="main-container">
     <div class="d-flex justify-content-between align-items-center mb-2">
-      <h4 class="fw-bold m-0"><i class="bi bi-shield-check text-primary"></i> VERIFIKASI SPJ</h4>
+      <div class="d-flex align-items-center gap-3">
+        <h4 class="fw-bold m-0"><i class="bi bi-shield-check text-primary"></i> VERIFIKASI SPJ</h4>
+        
+        <!-- LONCENG NOTIFIKASI -->
+        <div id="notifBell" class="position-relative" style="display:none; cursor: pointer;" onclick="filterPending()">
+          <i class="bi bi-bell-fill fs-5 text-muted" id="bellIcon"></i>
+          <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 9px; display:none;">
+            0
+          </span>
+        </div>
+      </div>
       
-      <div class="role-switcher shadow-sm">
-        <button class="role-btn active" id="btnUserMode" onclick="switchMode('user')"><i class="bi bi-person me-1"></i> Mode Pengirim</button>
-        <!-- GANTI: Mode Admin -> Mode Verifikator -->
-        <button class="role-btn" id="btnAdminMode" onclick="switchMode('admin')"><i class="bi bi-person-badge me-1"></i> Mode Verifikator</button>
+      <!-- BAGIAN KANAN: JAM & SWITCHER -->
+      <div class="d-flex align-items-center gap-3">
+        <!-- JAM DIGITAL MODERN -->
+        <div id="digitalClock" class="d-none d-md-flex align-items-center shadow-sm bg-white border px-3 py-1" style="border-radius: 12px; height: 40px; gap: 10px;">
+          <i class="bi bi-clock-fill text-primary"></i>
+          <div class="d-flex flex-column justify-content-center" style="line-height: 1.2;">
+            <span id="clockTime" class="fw-bold text-dark" style="font-size: 13px; font-variant-numeric: tabular-nums;">00:00:00</span>
+            <span id="clockDate" class="text-muted" style="font-size: 9px; font-weight: 600; text-transform: uppercase;">MEMUAT...</span>
+          </div>
+        </div>
+
+        <div class="role-switcher shadow-sm">
+          <button class="role-btn active" id="btnUserMode" onclick="switchMode('user')"><i class="bi bi-person me-1"></i> Mode Pengirim</button>
+          <button class="role-btn" id="btnAdminMode" onclick="switchMode('admin')"><i class="bi bi-person-badge me-1"></i> Mode Verifikator</button>
+        </div>
       </div>
     </div>
 
@@ -564,13 +606,12 @@
     let currentPage = 1;
     const rowsPerPage = 5;
     let currentRole = 'user';
-    let currentFilter = 'Semua'; // <-- Variabel filter baru
+    let currentFilter = 'Semua';
     let searchQuery = '';
 
     const urlMode = "<?= mode ?>";
 
     document.addEventListener('DOMContentLoaded', function() {
-      // Langsung arahkan berdasarkan URL parameter tanpa password
       if (urlMode === 'admin') {
         switchMode('admin');
       } else {
@@ -579,9 +620,10 @@
       loadData();
     });
 
+    // --- FIX: Tambahkan fungsi applyFilter yang sempat hilang ---
     function applyFilter(status) {
       currentFilter = status;
-      currentPage = 1; // Reset ke halaman 1 saat filter berubah
+      currentPage = 1; 
       renderTable();
     }
 
@@ -589,7 +631,6 @@
       currentRole = role;
       applyMode(role);
 
-      // GANTI: Admin -> Verifikator
       const roleName = (role === 'admin') ? 'Verifikator' : 'Pengirim';
       
       Swal.fire({
@@ -601,50 +642,50 @@
         timer: 1500,
         timerProgressBar: true
       });
-
-      const btnUser = document.getElementById('btnUserMode');
-      const btnAdmin = document.getElementById('btnAdminMode');
-      if (btnUser && btnAdmin) {
-        btnUser.classList.toggle('active', role === 'user');
-        btnAdmin.classList.toggle('active', role === 'admin');
-      }
     }
 
     function applyMode(role) {
       currentRole = role;
       
-      // Gunakan Optional Chaining (?.) atau cek null agar tidak error jika elemen sudah dihapus
       const btnUser = document.getElementById('btnUserMode');
       const btnAdmin = document.getElementById('btnAdminMode');
       const userSec = document.getElementById('userSection');
-      const adminSet = document.getElementById('adminSettings'); // Bagian ganti password
 
       if (btnUser) btnUser.classList.toggle('active', role === 'user');
       if (btnAdmin) btnAdmin.classList.toggle('active', role === 'admin');
       if (userSec) userSec.style.display = (role === 'user') ? 'block' : 'none';
-      if (adminSet) adminSet.style.display = (role === 'admin') ? 'block' : 'none';
       
+      // FIX: Panggil nama fungsi yang benar
+      updateNotificationLocal();
       renderTable();
     }
 
-    // --- SISANYA ADALAH LOGIC YANG SAMA DENGAN SEBELUMNYA ---
-    function loadData() {
-      // Pastikan loader tampil saat mulai loading (opsional jika refresh)
-      // document.getElementById('loading-screen').classList.remove('loader-hidden');
-
+    function loadData(isBackground = false) {
       google.script.run
         .withSuccessHandler(data => { 
+          // Cek apakah data benar-benar berubah sebelum render ulang
+          // (Opsional, untuk efisiensi)
           allData = data; 
-          renderTable(); 
           
-          // --- HILANGKAN LOADER DI SINI ---
-          setTimeout(() => {
-            document.getElementById('loading-screen').classList.add('loader-hidden');
-          }, 800); // Beri jeda sedikit agar transisi halus
+          // Hilangkan Loader hanya jika bukan refresh latar belakang
+          if (!isBackground) {
+            const loader = document.getElementById('loading-screen');
+            if(loader) loader.classList.add('loader-hidden');
+          }
+
+          // Cek apakah admin sedang mengetik di textarea
+          // Jika sedang mengetik, jangan render ulang tabel agar ketikan tidak hilang
+          const isTyping = document.activeElement.tagName === 'TEXTAREA';
+          
+          if (!isTyping) {
+            renderTable(); 
+          } else {
+            // Jika sedang mengetik, cukup update notifikasi lonceng saja
+            updateNotificationLocal();
+          }
         })
         .withFailureHandler(err => {
-          Swal.fire("Gagal Memuat", err.message, "error");
-          document.getElementById('loading-screen').classList.add('loader-hidden');
+          console.error("Polling Error:", err);
         })
         .getDocumentData();
     }
@@ -652,7 +693,7 @@
     function renderTable() {
       const tbody = document.getElementById('tableBody');
       
-      // 1. LOGIKA PENYARINGAN GANDA (Status & Pencarian)
+      // 1. LOGIKA PENYARINGAN GANDA
       let filteredData = allData.filter(row => {
         const matchesStatus = (currentFilter === 'Semua' || row[5] === currentFilter);
         const matchesSearch = row[1].toLowerCase().includes(searchQuery);
@@ -661,390 +702,294 @@
 
       // 2. LOGIKA PAGINATION
       const start = (currentPage - 1) * rowsPerPage;
-      const end = start + rowsPerPage;
-      const paginatedData = filteredData.slice(start, end);
+      const paginatedData = filteredData.slice(start, start + rowsPerPage);
 
-      // Tampilan jika data tidak ditemukan
       if (filteredData.length === 0) {
         tbody.innerHTML = `
           <tr>
             <td colspan="5" class="text-center py-5 text-muted">
               <i class="bi bi-search fs-2 d-block mb-2"></i>
-              Tidak ditemukan data "${searchQuery}" dengan status "${currentFilter}"
+              Nama "${searchQuery}" tidak ditemukan pada database
             </td>
           </tr>`;
         updatePaginationUI(0);
+        updateNotificationLocal();
         return;
       }
 
       tbody.innerHTML = '';
       paginatedData.forEach(row => {
-        // Definisi Status & Badge
         let badgeClass = 'waiting';
         if (row[5] === 'Terverifikasi') badgeClass = 'verified';
         if (row[5] === 'Ditolak') badgeClass = 'rejected';
 
         const isVerified = (row[5] === 'Terverifikasi');
         const isDitolak = (row[5] === 'Ditolak');
-        const isLocked = (isVerified || isDitolak);
-        const safeNote = (row[6] || "").replace(/\n/g, "<br>"); // Untuk popup timeline
+        const isLocked = (isVerified || isDitolak); // Status akhir (Verif/Tolak)
 
-        // --- LOGIKA EKSTRAKSI CATATAN ---
-        // Jika sudah diverifikasi atau ditolak, tampilkan pesan terakhir dari log di textarea
+        // --- LOGIKA BARU: CEK APAKAH FILE SUDAH PERNAH DIBUKA ---
+        // Kita cek apakah di kolom G (Indeks 6) mengandung kata "| Checking |"
+        const hasBeenOpened = (row[6] || "").includes("| Checking |");
+
+        // Tombol di-disable jika:
+        // 1. Status sudah Terverifikasi atau Ditolak (isLocked)
+        // 2. ATAU Status masih Menunggu Verifikasi TAPI belum pernah diklik "Lihat"
+        const isActionDisabled = isLocked || (!hasBeenOpened && row[5] === 'Menunggu Verifikasi');
+
+        const safeNote = (row[6] || "").replace(/\n/g, "<br>");
         const displayNote = isLocked ? getLastMessage(row[6]) : "";
 
-        // --- LOGIKA TOMBOL AKSI ---
         let actionHtml = '';
         if (currentRole === 'admin') {
           actionHtml = `
             <button class="btn-action btn-verif" onclick="changeStatus('${row[4]}', 'Terverifikasi')" 
-                    ${isLocked ? 'disabled' : ''} title="Verifikasi">
+                    ${isActionDisabled ? 'disabled' : ''} title="${!hasBeenOpened ? 'Buka dokumen dulu' : 'Verifikasi'}">
               <i class="bi bi-check-circle-fill"></i>
             </button>
             <button class="btn-action btn-tolak" onclick="changeStatus('${row[4]}', 'Ditolak')" 
-                    ${isLocked ? 'disabled' : ''} title="Tolak">
+                    ${isActionDisabled ? 'disabled' : ''} title="${!hasBeenOpened ? 'Buka dokumen dulu' : 'Tolak'}">
               <i class="bi bi-x-circle-fill"></i>
             </button>
           `;
-        } else {
-          if (isDitolak) {
-            actionHtml = `
-              <button class="btn-action btn-reupload" onclick="triggerReupload('${row[4]}')" title="Perbaiki & Upload Ulang">
-                <i class="bi bi-cloud-arrow-up-fill"></i>
-              </button>
-            `;
-          }
+        } else if (isDitolak) {
+          actionHtml = `<button class="btn-action btn-reupload" onclick="triggerReupload('${row[4]}')"><i class="bi bi-cloud-arrow-up-fill"></i></button>`;
         }
-        
-        // Tombol Timeline (Riwayat)
-        actionHtml += `
-          <button class="btn-action btn-history" onclick="viewHistory('${safeNote}')" title="Lihat Timeline">
-            <i class="bi bi-clock-history"></i>
-          </button>
-        `;
+        actionHtml += `<button class="btn-action btn-history" onclick="viewHistory('${safeNote}')"><i class="bi bi-clock-history"></i></button>`;
 
-        // --- RENDER BARIS ---
         const tr = document.createElement('tr');
         tr.innerHTML = `
+          <td><div class="fw-bold text-dark">${row[1]}</div><div class="text-muted small"><i class="bi bi-calendar3 me-1"></i>${row[0]}</div></td>
           <td>
-            <div class="fw-bold text-dark">${row[1]}</div>
-            <div class="text-muted" style="font-size: 10px;">
-              <i class="bi bi-calendar3 me-1"></i>${row[0]}
-            </div>
-          </td>
-          <td>
-            <button onclick="handleOpenFile('${row[4]}', '${row[3]}')" class="btn-view-file">
+            <button onclick="handleOpenFile('${row[4]}', '${row[3]}')" class="btn-view-file shadow-sm">
               <i class="bi bi-eye-fill"></i> Lihat
             </button>
           </td>
           <td><span class="status-badge ${badgeClass}">${row[5]}</span></td>
-          
           <td>
-            <textarea id="note-${row[4]}" class="note-textarea" 
-              rows="2"  /* Ubah ke 3 agar lebih luas */
-              placeholder="${isLocked ? 'Pesan terkunci' : (currentRole === 'user' ? 'Lihat timeline...' : 'Contoh:\n1. Nota Salah\n2. Laporan Kurang')}" 
-              ${(isLocked || currentRole === 'user') ? 'disabled' : ''}>${displayNote}</textarea>
+            <textarea id="note-${row[4]}" class="note-textarea" rows="2" 
+              placeholder="${isActionDisabled && !isLocked ? 'Buka file untuk mengisi catatan' : (isLocked ? 'Pesan terkunci' : 'Tulis catatan...')}" 
+              ${(isActionDisabled || currentRole === 'user') ? 'disabled' : ''}>${displayNote}</textarea>
           </td>
-
-          <td>
-            <div class="d-flex justify-content-center align-items-center">
-              ${actionHtml}
-            </div>
-          </td>
+          <td><div class="d-flex justify-content-center align-items-center">${actionHtml}</div></td>
         `;
         tbody.appendChild(tr);
       });
 
       updatePaginationUI(filteredData.length);
+      updateNotificationLocal();
     }
 
     function updatePaginationUI(totalFilteredItems) {
       const totalPages = Math.ceil(totalFilteredItems / rowsPerPage) || 1;
-      document.getElementById('pageInfo').innerText = `Total: ${totalFilteredItems} data (${currentFilter})`;
+      const info = document.getElementById('pageInfo');
+      if (info) info.innerText = `Total: ${totalFilteredItems} data`;
       
       const pageSelect = document.getElementById('pageSelect');
-      pageSelect.innerHTML = '';
-      for (let i = 1; i <= totalPages; i++) {
-        const opt = document.createElement('option');
-        opt.value = i; opt.innerText = i;
-        if (i === currentPage) opt.selected = true;
-        pageSelect.appendChild(opt);
+      if (pageSelect) {
+        pageSelect.innerHTML = '';
+        for (let i = 1; i <= totalPages; i++) {
+          pageSelect.innerHTML += `<option value="${i}" ${i === currentPage ? 'selected' : ''}>${i}</option>`;
+        }
       }
-      document.getElementById('btnPrev').disabled = (currentPage === 1);
-      document.getElementById('btnNext').disabled = (currentPage === totalPages || totalFilteredItems === 0);
+      const prev = document.getElementById('btnPrev');
+      const next = document.getElementById('btnNext');
+      if (prev) prev.disabled = (currentPage === 1);
+      if (next) next.disabled = (currentPage === totalPages || totalFilteredItems === 0);
     }
 
     function goToPage(p) { currentPage = parseInt(p); renderTable(); }
     function prevPage() { if (currentPage > 1) { currentPage--; renderTable(); } }
     function nextPage() {
       let filteredCount = currentFilter === 'Semua' ? allData.length : allData.filter(row => row[5] === currentFilter).length;
-      if (currentPage * rowsPerPage < filteredCount) {
-        currentPage++;
-        renderTable();
-      }
+      if (currentPage * rowsPerPage < filteredCount) { currentPage++; renderTable(); }
     }
-    function showLoading(m) { Swal.fire({ title: m, allowOutsideClick: false, didOpen: () => Swal.showLoading() }); }
 
-    // Logic Functions (Upload, Change Status, etc)
     function processUpload() {
       const nameInput = document.getElementById('uploaderName');
       const fileInput = document.getElementById('fileInput');
-      
-      if (!fileInput.files[0] || !nameInput.value) {
-        Swal.fire("Peringatan", "Nama Pengirim & File wajib diisi", "warning");
-        return;
-      }
+      if (!fileInput.files[0] || !nameInput.value) { Swal.fire("Peringatan", "Lengkapi form!", "warning"); return; }
       
       showLoading("Mengunggah...");
       const file = fileInput.files[0];
       const reader = new FileReader();
-      
       reader.onload = function(e) {
-        const obj = {
-          data: e.target.result.split(',')[1],
-          mimeType: file.type,
-          fileName: file.name,
-          uploaderName: nameInput.value
-        };
-        
         google.script.run.withSuccessHandler((res) => {
           Swal.fire({ icon: 'success', title: 'Terkirim!', text: res, timer: 2000 });
-          
-          // --- PERBAIKAN: CLEAR FORM DI SINI ---
-          nameInput.value = ''; 
-          fileInput.value = '';
-          // -------------------------------------
-          
+          nameInput.value = ''; fileInput.value = '';
           loadData();
-        }).uploadFile(obj);
+        }).uploadFile({ data: e.target.result.split(',')[1], mimeType: file.type, fileName: file.name, uploaderName: nameInput.value });
       };
       reader.readAsDataURL(file);
     }
 
     function changeStatus(id, status) {
-  // 1. Ambil elemen dan nilai dari textarea
-  const noteElement = document.getElementById('note-' + id);
-  const noteValue = noteElement ? noteElement.value.trim() : "";
-  
-  // 2. Validasi: Jika ditolak, catatan wajib diisi
-  if (status === 'Ditolak' && !noteValue) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'Catatan Diperlukan',
-      text: 'Harap tuliskan alasan penolakan pada kolom catatan sebelum menolak dokumen.',
-      confirmButtonColor: '#f43f5e'
-    });
-    return;
-  }
+      const noteVal = document.getElementById('note-' + id).value.trim();
+      if (status === 'Ditolak' && !noteVal) { Swal.fire("Peringatan", "Alasan penolakan wajib diisi!", "warning"); return; }
 
-  // 3. Dialog Konfirmasi Modern
-  Swal.fire({
-    title: `Konfirmasi`,
-    text: `Apakah Anda yakin dokumen ini sudah diverifikasi?`,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonColor: status === 'Terverifikasi' ? '#10b981' : '#f43f5e',
-    cancelButtonColor: '#64748b',
-    confirmButtonText: status === 'Terverifikasi' ? 'Ya' : 'Ya, Tolak Dokumen',
-    cancelButtonText: 'Batal',
-    reverseButtons: true // Memposisikan tombol 'Batal' di kiri
-  }).then((result) => {
-    if (result.isConfirmed) {
-      // 4. Tampilkan Loading saat proses server
-      showLoading(`Sedang memproses status: ${status}...`);
-      
-      google.script.run
-        .withSuccessHandler((res) => {
-          Swal.fire({
-            icon: 'success',
-            title: 'Berhasil!',
-            text: res,
-            timer: 1500,
-            showConfirmButton: false
-          });
-          loadData(); // Segarkan tabel
-        })
-        .withFailureHandler((err) => {
-          Swal.fire({
-            icon: 'error',
-            title: 'Terjadi Kesalahan',
-            text: err.toString()
-          });
-        })
-        .updateStatus(id, status, noteValue);
+      Swal.fire({
+        title: 'Konfirmasi',
+        text: `Yakin ubah status ke ${status}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: status === 'Terverifikasi' ? '#10b981' : '#f43f5e',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          showLoading("Memproses...");
+          google.script.run.withSuccessHandler((res) => {
+            Swal.fire({ icon: 'success', title: 'Berhasil!', timer: 1500, showConfirmButton: false });
+            loadData();
+          }).updateStatus(id, status, noteVal);
+        }
+      });
     }
-  });
-}
 
     function triggerReupload(id) { document.getElementById('targetOldFileId').value = id; document.getElementById('reuploadInput').click(); }
+    
     function processReupload(input) {
       if (!input.files[0]) return;
+      showLoading("Memperbarui...");
       const file = input.files[0];
-      const oldFileId = document.getElementById('targetOldFileId').value;
-      
-      showLoading("Memperbarui dokumen...");
       const reader = new FileReader();
       reader.onload = function(e) {
-        const obj = {
-          data: e.target.result.split(',')[1],
-          mimeType: file.type,
-          fileName: file.name,
-          oldFileId: oldFileId
-        };
-        
         google.script.run.withSuccessHandler((res) => {
           Swal.fire({ icon: 'success', title: 'Berhasil', text: res });
-          
-          // --- PERBAIKAN: CLEAR INPUT FILE TERSEMBUNYI ---
-          input.value = ''; 
-          // ----------------------------------------------
-          
-          loadData();
-        }).reuploadFile(obj);
+          input.value = ''; loadData();
+        }).reuploadFile({ data: e.target.result.split(',')[1], mimeType: file.type, fileName: file.name, oldFileId: document.getElementById('targetOldFileId').value });
       };
       reader.readAsDataURL(file);
     }
 
-    function viewHistory(noteRaw) {
-      if (!noteRaw || noteRaw.trim() === "") {
-        Swal.fire("Info", "Belum ada riwayat.", "info");
-        return;
-      }
-
-      // Ganti <br> kembali ke \n untuk memudahkan parsing
-      const cleanLog = noteRaw.replace(/<br>/g, '\n');
-      
-      // Pecah berdasarkan baris baru yang diikuti dengan "[" (awal entri log)
-      const entries = cleanLog.split(/\n(?=\[)/);
-      
-      let timelineHtml = '<div class="timeline-container text-start">';
-
-      entries.forEach(entry => {
-        if (!entry.trim()) return;
-        
-        // Regex untuk memecah [Waktu | Status | Pelaku]: Pesan (Pesan bisa multi-line)
-        const match = entry.match(/\[(.*?) \| (.*?) \| (.*?)\]: ([\s\S]*)/);
-        if (match) {
-          const [_, date, status, actor, message] = match;
-          let statusKey = status.toLowerCase().replace(/\s/g, '-');
-          
-          // Ubah \n di dalam message menjadi <br> agar tampil baris baru di HTML
-          const formattedMessage = message.trim().replace(/\n/g, '<br>');
-          
-          timelineHtml += `
-            <div class="timeline-item">
-              <div class="timeline-dot dot-${statusKey}"></div>
-              <div class="timeline-content">
-                <div class="timeline-date">${date}</div>
-                <div class="timeline-title title-${statusKey}">
-                  ${status} oleh ${actor}
-                </div>
-                <div class="timeline-bubble shadow-sm">
-                  ${formattedMessage}
-                </div>
-              </div>
-            </div>
-          `;
-        }
-      });
-
-      timelineHtml += '</div>';
-
-      Swal.fire({
-        title: '<strong>Timeline Dokumen</strong>',
-        html: timelineHtml,
-        width: '480px',
-        showCloseButton: true,
-        confirmButtonText: 'Tutup',
-        confirmButtonColor: '#4f46e5'
-      });
-    }
-
     function handleOpenFile(fileId, fileUrl) {
-      // 1. Langsung buka file di tab baru (agar cepat)
       window.open(fileUrl, '_blank');
-
-      // 2. Jika mode Verifikator, kirim log ke server
       if (currentRole === 'admin') {
-        google.script.run
-          .withSuccessHandler(() => {
-            // Refresh data secara diam-diam untuk memperbarui timeline di latar belakang
-            loadData(); 
-          })
-          .logCheckingActivity(fileId);
+        google.script.run.withSuccessHandler(() => { loadData(); }).logCheckingActivity(fileId);
       }
     }
 
     function handleSearch(val) {
       searchQuery = val.toLowerCase();
-      
-      // Tampilkan tombol X jika ada teks, sembunyikan jika kosong
-      const btnClear = document.getElementById('btnClearSearch');
-      if (val.length > 0) {
-        btnClear.style.display = 'flex';
-      } else {
-        btnClear.style.display = 'none';
-      }
-
-      currentPage = 1; 
-      renderTable();
+      const btnX = document.getElementById('btnClearSearch');
+      if(btnX) btnX.style.display = val.length > 0 ? 'flex' : 'none';
+      currentPage = 1; renderTable();
     }
 
     function clearSearch() {
       const input = document.getElementById('searchInput');
-      input.value = '';
-      searchQuery = '';
-      
-      // Sembunyikan tombol X
-      document.getElementById('btnClearSearch').style.display = 'none';
-      
-      currentPage = 1;
-      input.focus(); // Kembalikan fokus ke input
-      renderTable();
+      input.value = ''; searchQuery = '';
+      const btnX = document.getElementById('btnClearSearch');
+      if(btnX) btnX.style.display = 'none';
+      currentPage = 1; input.focus(); renderTable();
     }
 
-    // Fungsi buka/tutup menu
-    function toggleStatusMenu() {
-      document.getElementById('statusDropdown').classList.toggle('active');
-    }
+    function toggleStatusMenu() { document.getElementById('statusDropdown').classList.toggle('active'); }
 
-    // Fungsi saat item dipilih
-    function selectStatus(statusValue, dotClass, labelText) {
-      // 1. Update tampilan trigger (tulisan dan warna dot)
+    function selectStatus(val, dot, label) {
       const display = document.getElementById('selectedStatusDisplay');
-      display.innerHTML = `<div class="status-dot ${dotClass}"></div> <span>${labelText}</span>`;
-      
-      // 2. Tutup menu
+      display.innerHTML = `<div class="status-dot ${dot}"></div> <span>${label}</span>`;
       document.getElementById('statusDropdown').classList.remove('active');
-      
-      // 3. Jalankan fungsi filter asli Anda
-      applyFilter(statusValue);
+      applyFilter(val);
     }
 
-    // Menutup dropdown jika klik di luar area
-    window.onclick = function(event) {
-      if (!event.target.closest('#statusDropdown')) {
-        document.getElementById('statusDropdown').classList.remove('active');
+    window.onclick = function(e) {
+      if (!e.target.closest('#statusDropdown')) {
+        const drop = document.getElementById('statusDropdown');
+        if(drop) drop.classList.remove('active');
       }
     }
 
-    // Fungsi untuk mengambil pesan saja dari baris pertama log riwayat
-    function getLastMessage(logRaw) {
-      if (!logRaw) return "";
-      
-      // Pisahkan berdasarkan entri riwayat (setiap entri dimulai dengan [ )
-      // Kita gunakan regex untuk memecah berdasarkan baris baru yang diikuti tanda [
-      const entries = logRaw.split(/\n(?=\[)/); 
-      const firstEntry = entries[0]; // Ambil entri paling atas (terbaru)
-      
-      // Ambil teks setelah karakter "]: "
-      const parts = firstEntry.split(']: ');
-      if (parts.length > 1) {
-        // Gabungkan kembali sisa bagian jika di dalam pesan ada simbol "]: "
-        return parts.slice(1).join(']: ').trim();
-      }
-      return "";
+    function getLastMessage(log) {
+      if (!log) return "";
+      const firstLine = log.split('\n')[0];
+      const parts = firstLine.split(']: ');
+      return parts.length > 1 ? parts[1].trim() : "";
     }
-  </script>
+
+    function updateNotificationLocal() {
+      const bell = document.getElementById('notifBell');
+      const badge = document.getElementById('notifBadge');
+      const icon = document.getElementById('bellIcon');
+      if (!bell || !badge || !icon) return;
+      if (currentRole !== 'admin') { bell.style.display = 'none'; return; }
+      bell.style.display = 'block';
+      const count = allData.filter(row => row[5] === "Menunggu Verifikasi").length;
+      if (count > 0) {
+        badge.innerText = count; badge.style.display = 'block';
+        icon.classList.add('bell-ringing');
+      } else {
+        badge.style.display = 'none'; icon.classList.remove('bell-ringing');
+      }
+    }
+
+    function filterPending() {
+      applyFilter("Menunggu Verifikasi");
+      const disp = document.getElementById('selectedStatusDisplay');
+      if (disp) disp.innerHTML = `<div class="status-dot dot-waiting"></div> <span>Menunggu Verifikasi</span>`;
+    }
+
+    function showLoading(m) { Swal.fire({ title: m, allowOutsideClick: false, didOpen: () => Swal.showLoading() }); }
+
+    function viewHistory(noteRaw) {
+      if (!noteRaw) { Swal.fire("Info", "Belum ada riwayat.", "info"); return; }
+      const cleanLog = noteRaw.replace(/<br>/g, '\n');
+      const entries = cleanLog.split(/\n(?=\[)/);
+      let html = '<div class="timeline-container text-start">';
+      entries.forEach(entry => {
+        const match = entry.match(/\[(.*?) \| (.*?) \| (.*?)\]: ([\s\S]*)/);
+        if (match) {
+          const [_, d, s, a, m] = match;
+          let sk = s.toLowerCase().replace(/\s/g, '-');
+          html += `<div class="timeline-item"><div class="timeline-dot dot-${sk}"></div><div class="timeline-content"><div class="timeline-date">${d}</div><div class="timeline-title title-${sk}">${s} oleh ${a}</div><div class="timeline-bubble shadow-sm">${m.trim().replace(/\n/g, '<br>')}</div></div></div>`;
+        }
+      });
+      html += '</div>';
+      Swal.fire({ title: '<strong>Timeline Dokumen</strong>', html: html, width: '480px', showCloseButton: true, confirmButtonText: 'Tutup' });
+    }
+
+    // Fungsi Jam Digital Real-time
+    function startClock() {
+      const timeElement = document.getElementById('clockTime');
+      const dateElement = document.getElementById('clockDate');
+      
+      const update = () => {
+        const now = new Date();
+        
+        // Format Waktu (HH:mm:ss)
+        const timeStr = now.toLocaleTimeString('id-ID', { 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit',
+          hour12: false 
+        });
+        
+        // Format Hari & Tanggal (Minggu, 08 Jul 2026)
+        const dateStr = now.toLocaleDateString('id-ID', { 
+          weekday: 'long', 
+          day: '2-digit', 
+          month: 'short', 
+          year: 'numeric' 
+        });
+        
+        if(timeElement) timeElement.innerText = timeStr;
+        if(dateElement) dateElement.innerText = dateStr;
+      };
+      
+      update(); // Jalankan langsung
+      setInterval(update, 1000); // Update setiap detik
+    }
+
+    // Panggil fungsi startClock saat halaman dimuat
+    document.addEventListener('DOMContentLoaded', function() {
+      startClock(); // <-- Tambahkan ini
+      // ... (fungsi DOMContentLoaded yang sudah ada lainnya)
+    });
+
+    // Jalankan pengecekan otomatis setiap 30 detik
+    setInterval(function() {
+      // Hanya lakukan polling otomatis jika sedang di mode admin/verifikator
+      if (currentRole === 'admin') {
+        loadData(true); // true menandakan ini adalah refresh latar belakang
+      }
+    }, 30000); // 30000 ms = 30 detik
+</script>
 </body>
 </html>
