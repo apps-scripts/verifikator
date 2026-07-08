@@ -176,3 +176,17 @@ function logCheckingActivity(fileId) {
     return "Error: " + e.toString();
   }
 }
+
+function getPendingCount() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('Data');
+    const data = sheet.getDataRange().getValues();
+    
+    // Hitung baris yang kolom F (indeks 5) isinya "Menunggu Verifikasi"
+    const pending = data.filter(row => row[5] === "Menunggu Verifikasi");
+    return pending.length;
+  } catch (e) {
+    return 0;
+  }
+}
